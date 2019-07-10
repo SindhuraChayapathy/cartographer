@@ -91,8 +91,10 @@ void CastRays(const sensor::RangeData& range_data,
         kSubpixelScale);
     for (const Eigen::Array2i& cell_index : ray) {
       probability_grid->ApplyLookupTable(cell_index, miss_table);
+      // std::cout << "cell index " << cell_index << probability_grid->getProbability(cell_index) << std::endl;
     }
   }
+
 }
 }  // namespace
 

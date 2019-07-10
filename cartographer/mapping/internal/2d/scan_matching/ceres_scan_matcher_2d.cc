@@ -69,6 +69,7 @@ void CeresScanMatcher2D::Match(const Eigen::Vector2d& target_translation,
   double ceres_pose_estimate[3] = {initial_pose_estimate.translation().x(),
                                    initial_pose_estimate.translation().y(),
                                    initial_pose_estimate.rotation().angle()};
+  // std::cout << "initial " << ceres_pose_estimate[0] << " " << ceres_pose_estimate[1] << " " << ceres_pose_estimate[2] << std::endl;
   ceres::Problem problem;
   CHECK_GT(options_.occupied_space_weight(), 0.);
   switch (grid.GetGridType()) {
@@ -101,7 +102,6 @@ void CeresScanMatcher2D::Match(const Eigen::Vector2d& target_translation,
       nullptr /* loss function */, ceres_pose_estimate);
 
   ceres::Solve(ceres_solver_options_, &problem, summary);
-
   *pose_estimate = transform::Rigid2d(
       {ceres_pose_estimate[0], ceres_pose_estimate[1]}, ceres_pose_estimate[2]);
 }

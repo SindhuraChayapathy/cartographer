@@ -110,6 +110,7 @@ class LocalTrajectoryBuilder2D {
   std::unique_ptr<PoseExtrapolator> extrapolator_;
 
   int num_accumulated_ = 0;
+  bool initial_pose_received_ = false;
   sensor::RangeData accumulated_range_data_;
 
   absl::optional<std::chrono::steady_clock::time_point> last_wall_time_;

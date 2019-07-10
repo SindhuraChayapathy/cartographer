@@ -112,6 +112,7 @@ void ConstraintBuilder2D::MaybeAddGlobalConstraint(
     LOG(WARNING)
         << "MaybeAddGlobalConstraint was called while WhenDone was scheduled.";
   }
+  // std::cout << "submap  & trajectory " << submap_id.submap_index << " " << submap_id.trajectory_id << " node " << node_id.node_index  << " " << node_id.trajectory_id << std::endl;
   constraints_.emplace_back();
   kQueueLengthMetric->Set(constraints_.size());
   auto* const constraint = &constraints_.back();
@@ -195,7 +196,7 @@ void ConstraintBuilder2D::ComputeConstraint(
   // - the ComputeSubmapPose() (map <- submap i)
   float score = 0.;
   transform::Rigid2d pose_estimate = transform::Rigid2d::Identity();
-
+  
   // Compute 'pose_estimate' in three stages:
   // 1. Fast estimate using the fast correlative scan matcher.
   // 2. Prune if the score is too low.
@@ -211,6 +212,7 @@ void ConstraintBuilder2D::ComputeConstraint(
       kGlobalConstraintsFoundMetric->Increment();
       kGlobalConstraintScoresMetric->Observe(score);
     } else {
+      // LOG(INFO) << "score " << score << "submap trajectory id " << submap_id.trajectory_id << " submap id " << submap_id.submap_index;
       return;
     }
   } else {
@@ -234,6 +236,7 @@ void ConstraintBuilder2D::ComputeConstraint(
   // Use the CSM estimate as both the initial and previous pose. This has the
   // effect that, in the absence of better information, we prefer the original
   // CSM estimate.
+
   ceres::Solver::Summary unused_summary;
   ceres_scan_matcher_.Match(pose_estimate.translation(), pose_estimate,
                             constant_data->filtered_gravity_aligned_point_cloud,

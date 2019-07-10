@@ -74,6 +74,21 @@ std::unique_ptr<transform::Rigid2d> LocalTrajectoryBuilder2D::ScanMatch(
   // the Ceres scan matcher.
   transform::Rigid2d initial_ceres_pose = pose_prediction;
 
+  if(!initial_pose_received_) {
+    LOG(INFO) << "initial_ceres_pose " << pose_prediction;
+    const double score = real_time_correlative_scan_matcher_.Match(
+        pose_prediction, filtered_gravity_aligned_point_cloud,
+        *matching_submap->grid(), &initial_ceres_pose);
+    LOG(INFO) << "optimized_ceres_pose " << initial_ceres_pose;
+
+    LOG(INFO) << "score " << score;
+    initial_pose_received_ = true;
+    // if(score > 0.68) {
+    //   initial_pose_received_ = true;
+    // }
+    kRealTimeCorrelativeScanMatcherScoreMetric->Observe(score);    
+    
+  }
   if (options_.use_online_correlative_scan_matching()) {
     const double score = real_time_correlative_scan_matcher_.Match(
         pose_prediction, filtered_gravity_aligned_point_cloud,

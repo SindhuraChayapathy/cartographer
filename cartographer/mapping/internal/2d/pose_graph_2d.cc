@@ -132,12 +132,25 @@ NodeId PoseGraph2D::AppendNode(
   const NodeId node_id = data_.trajectory_nodes.Append(
       trajectory_id, TrajectoryNode{constant_data, optimized_pose});
   ++data_.num_trajectory_nodes;
+  // LOG(INFO) << " Node id " << node_id << "." << std::endl;
+  
+  // For the first node do a full submap exploration
+  // if(node_id.node_index == 0) {
+
+    // transform::Rigid2d initial_2d_pose;
+    // transform::Rigid2d optimized_2d_pose;
+    // initial_2d_pose = transform::Project2D(optimized_pose);
+    // float score = 0.;
+    // scan_matching::FastCorrelativeScanMatcher2D fast_correlative_scan_matching;
+    // fast_correlative_scan_matching.Match(initial_2d_pose, constant_data->filtered_gravity_aligned_point_cloud, 0.68, &score, &optimized_2d_pose);
+  // }
   // Test if the 'insertion_submap.back()' is one we never saw before.
   if (data_.submap_data.SizeOfTrajectoryOrZero(trajectory_id) == 0 ||
       std::prev(data_.submap_data.EndOfTrajectory(trajectory_id))
               ->data.submap != insertion_submaps.back()) {
     // We grow 'data_.submap_data' as needed. This code assumes that the first
     // time we see a new submap is as 'insertion_submaps.back()'.
+    // LOG(INFO) << " optimized pose " << optimized_pose << std::endl;
     const SubmapId submap_id =
         data_.submap_data.Append(trajectory_id, InternalSubmapData());
     data_.submap_data.at(submap_id).submap = insertion_submaps.back();
@@ -150,6 +163,7 @@ NodeId PoseGraph2D::AddNode(
     std::shared_ptr<const TrajectoryNode::Data> constant_data,
     const int trajectory_id,
     const std::vector<std::shared_ptr<const Submap2D>>& insertion_submaps) {
+  // LOG(INFO) << "trajectory id " << trajectory_id << std::endl;
   const transform::Rigid3d optimized_pose(
       GetLocalToGlobalTransform(trajectory_id) * constant_data->local_pose);
 
@@ -172,6 +186,7 @@ void PoseGraph2D::AddWorkItem(
   if (work_queue_ == nullptr) {
     work_queue_ = absl::make_unique<WorkQueue>();
     auto task = absl::make_unique<common::Task>();
+    // LOG(INFO) << "Trying to add work item ";
     task->SetWorkItem([this]() { DrainWorkQueue(); });
     thread_pool_->Schedule(std::move(task));
   }
@@ -275,21 +290,30 @@ void PoseGraph2D::ComputeConstraint(const NodeId& node_id,
       // local search window.
       maybe_add_local_constraint = true;
     } else if (global_localization_samplers_[node_id.trajectory_id]->Pulse()) {
-      maybe_add_global_constraint = true;
+      maybe_add_local_constraint = true;
+      maybe_add_global_constraint = false;
     }
     constant_data = data_.trajectory_nodes.at(node_id).constant_data.get();
     submap = static_cast<const Submap2D*>(
         data_.submap_data.at(submap_id).submap.get());
   }
 
+  // add local constraint only if submaps are within 15m from the current pose.
   if (maybe_add_local_constraint) {
     const transform::Rigid2d initial_relative_pose =
         optimization_problem_->submap_data()
             .at(submap_id)
             .global_pose.inverse() *
         optimization_problem_->node_data().at(node_id).global_pose_2d;
-    constraint_builder_.MaybeAddConstraint(
-        submap_id, submap, node_id, constant_data, initial_relative_pose);
+    const transform::Rigid2d submap_global_pose = optimization_problem_->submap_data().at(submap_id).global_pose;
+    const transform::Rigid2d node_global_pose = transform::Project2D(data_.trajectory_nodes.at(node_id).global_pose);
+    double dist = sqrt(((submap_global_pose.translation().x() - node_global_pose.translation().x()) * (submap_global_pose.translation().x() - node_global_pose.translation().x())) +
+                ((submap_global_pose.translation().y() - node_global_pose.translation().y()) * (submap_global_pose.translation().y() - node_global_pose.translation().y())));
+    if(dist < 25) {
+      // LOG(INFO) << initial_relative_pose << " submap id " << submap_id.trajectory_id << " index " << submap_id.submap_index << " " << node_global_pose;
+      constraint_builder_.MaybeAddConstraint(
+          submap_id, submap, node_id, constant_data, initial_relative_pose);
+    }
   } else if (maybe_add_global_constraint) {
     constraint_builder_.MaybeAddGlobalConstraint(submap_id, submap, node_id,
                                                  constant_data);
@@ -364,6 +388,7 @@ WorkItem::Result PoseGraph2D::ComputeConstraintsForNode(
   }
 
   for (const auto& submap_id : finished_submap_ids) {
+    // std::cout << submap_id.submap_index << " trajectory id " << submap_id.trajectory_id << " node id " << node_id.node_index << " trajectory id " << node_id.trajectory_id << std::endl;
     ComputeConstraint(node_id, submap_id);
   }
 
@@ -604,6 +629,7 @@ void PoseGraph2D::DeleteTrajectory(const int trajectory_id) {
     it->second.deletion_state =
         InternalTrajectoryState::DeletionState::SCHEDULED_FOR_DELETION;
   }
+  LOG(INFO) << "DeleteTrajectory ";
   AddWorkItem([this, trajectory_id]() LOCKS_EXCLUDED(mutex_) {
     absl::MutexLock locker(&mutex_);
     CHECK(data_.trajectories_state.at(trajectory_id).state !=
@@ -619,6 +645,7 @@ void PoseGraph2D::DeleteTrajectory(const int trajectory_id) {
 }
 
 void PoseGraph2D::FinishTrajectory(const int trajectory_id) {
+  LOG(INFO) << "FinishTrajectory ";
   AddWorkItem([this, trajectory_id]() LOCKS_EXCLUDED(mutex_) {
     absl::MutexLock locker(&mutex_);
     CHECK(!IsTrajectoryFinished(trajectory_id));
@@ -988,6 +1015,14 @@ void PoseGraph2D::SetInitialTrajectoryPose(const int from_trajectory_id,
                                            const transform::Rigid3d& pose,
                                            const common::Time time) {
   absl::MutexLock locker(&mutex_);
+  LOG(INFO) << "from trajectory id " << from_trajectory_id << " to trajectory id " << to_trajectory_id;
+  for (const auto& submap_id_data : data_.submap_data) {
+    if (submap_id_data.data.state == SubmapState::kFinished) {
+
+      LOG(INFO) << submap_id_data.id.trajectory_id << " " << submap_id_data.id.submap_index;
+    }
+  }
+
   data_.initial_trajectory_poses[from_trajectory_id] =
       InitialTrajectoryPose{to_trajectory_id, pose, time};
 }
@@ -1059,9 +1094,10 @@ transform::Rigid3d PoseGraph2D::ComputeLocalToGlobalTransform(
   if (begin_it == end_it) {
     const auto it = data_.initial_trajectory_poses.find(trajectory_id);
     if (it != data_.initial_trajectory_poses.end()) {
-      return GetInterpolatedGlobalTrajectoryPose(it->second.to_trajectory_id,
+      transform::Rigid3d global_pose = GetInterpolatedGlobalTrajectoryPose(it->second.to_trajectory_id,
                                                  it->second.time) *
-             it->second.relative_pose;
+                                      it->second.relative_pose;
+      return global_pose;
     } else {
       return transform::Rigid3d::Identity();
     }

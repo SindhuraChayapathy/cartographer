@@ -105,13 +105,15 @@ class ConstraintBuilder2D {
 
   static void RegisterMetrics(metrics::FamilyFactory* family_factory);
 
- private:
+  
   struct SubmapScanMatcher {
     const Grid2D* grid = nullptr;
     std::unique_ptr<scan_matching::FastCorrelativeScanMatcher2D>
         fast_correlative_scan_matcher;
     std::weak_ptr<common::Task> creation_task_handle;
   };
+
+  private:
 
   // The returned 'grid' and 'fast_correlative_scan_matcher' must only be
   // accessed after 'creation_task_handle' has completed.

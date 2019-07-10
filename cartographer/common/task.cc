@@ -23,6 +23,7 @@ Task::~Task() {
   // TODO(gaschler): Relax some checks after testing.
   if (state_ != NEW && state_ != COMPLETED) {
     LOG(WARNING) << "Delete Task between dispatch and completion.";
+    LOG(WARNING) << state_;
   }
 }
 

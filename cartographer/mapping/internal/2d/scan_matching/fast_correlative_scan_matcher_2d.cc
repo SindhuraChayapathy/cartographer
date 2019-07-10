@@ -213,13 +213,15 @@ bool FastCorrelativeScanMatcher2D::MatchFullSubmap(
   // Compute a search window around the center of the submap that includes it
   // fully.
   const SearchParameters search_parameters(
-      1e6 * limits_.resolution(),  // Linear search window, 1e6 cells/direction.
-      M_PI,  // Angular search window, 180 degrees in both directions.
+      4.0,// 1e6 * limits_.resolution(),// options_.linear_search_window(), //1e6 * limits_.resolution(),  // Linear search window, 1e6 cells/direction.
+      M_PI/4, // M_PI/4, //M_PI,  // Angular search window, 180 degrees in both directions.
       point_cloud, limits_.resolution());
+  // LOG(INFO) << limits_.resolution() << " cell limits y " << limits_.cell_limits().num_y_cells << " cell limits x " << limits_.cell_limits().num_x_cells;
   const transform::Rigid2d center = transform::Rigid2d::Translation(
       limits_.max() - 0.5 * limits_.resolution() *
                           Eigen::Vector2d(limits_.cell_limits().num_y_cells,
                                           limits_.cell_limits().num_x_cells));
+  // LOG(INFO) << " initial pose information " << center;  
   return MatchWithSearchParameters(search_parameters, center, point_cloud,
                                    min_score, score, pose_estimate);
 }
@@ -250,6 +252,8 @@ bool FastCorrelativeScanMatcher2D::MatchWithSearchParameters(
   const Candidate2D best_candidate = BranchAndBound(
       discrete_scans, search_parameters, lowest_resolution_candidates,
       precomputation_grid_stack_->max_depth(), min_score);
+  *score = best_candidate.score;
+      // std::cout << " has score " << best_candidate.score << " min score " << min_score << std::endl;
   if (best_candidate.score > min_score) {
     *score = best_candidate.score;
     *pose_estimate = transform::Rigid2d(
@@ -345,7 +349,9 @@ Candidate2D FastCorrelativeScanMatcher2D::BranchAndBound(
   Candidate2D best_high_resolution_candidate(0, 0, 0, search_parameters);
   best_high_resolution_candidate.score = min_score;
   for (const Candidate2D& candidate : candidates) {
+    // LOG(INFO) << candidate.score;
     if (candidate.score <= min_score) {
+      // best_high_resolution_candidate.score = candidate.score;
       break;
     }
     std::vector<Candidate2D> higher_resolution_candidates;
