@@ -56,6 +56,8 @@ message PoseGraphOptions {
   // globally rather than in a smaller search window.
   double global_constraint_search_after_n_seconds = 10;
 
+  bool reduce_global_constraint_search_area = 12;
+
   message OverlappingSubmapsTrimmerOptions2D {
     int32 fresh_submaps_count = 1;
     double min_covered_area = 2;

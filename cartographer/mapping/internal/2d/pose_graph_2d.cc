@@ -279,7 +279,11 @@ void PoseGraph2D::ComputeConstraint(const NodeId& node_id,
       // local search window.
       maybe_add_local_constraint = true;
     } else if (global_localization_samplers_[node_id.trajectory_id]->Pulse()) {
-      maybe_add_global_constraint = true;
+      if(options_.reduce_global_constraint_search_area()){
+        maybe_add_local_constraint = true;
+      } else {
+        maybe_add_global_constraint = true;
+      }
     }
     constant_data = data_.trajectory_nodes.at(node_id).constant_data.get();
     submap = static_cast<const Submap2D*>(

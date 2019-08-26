@@ -155,6 +155,7 @@ class PoseGraph2DTest : public ::testing::Test {
             global_sampling_ratio = 0.01,
             log_residual_histograms = true,
             global_constraint_search_after_n_seconds = 10.0,
+            reduce_global_constraint_search_area = false,
           })text");
       auto options = CreatePoseGraphOptions(parameter_dictionary.get());
       pose_graph_ = absl::make_unique<PoseGraph2D>(
