@@ -41,6 +41,7 @@ DEFINE_double(outlier_threshold_meters, 0.15,
 DEFINE_double(outlier_threshold_radians, 0.02,
               "Distance in radians beyond which constraints are considered "
               "outliers.");
+DEFINE_bool(multiple_trajectories, true, "multiple trajectories present in pbstream");
 
 namespace cartographer {
 namespace ground_truth {
@@ -49,19 +50,28 @@ namespace {
 void Run(const std::string& pose_graph_filename,
          const std::string& output_filename, const double min_covered_distance,
          const double outlier_threshold_meters,
-         const double outlier_threshold_radians) {
+         const double outlier_threshold_radians,
+         const bool multiple_trajectories) {
   LOG(INFO) << "Reading pose graph from '" << pose_graph_filename << "'...";
   mapping::proto::PoseGraph pose_graph =
       io::DeserializePoseGraphFromFile(pose_graph_filename);
 
   LOG(INFO) << "Autogenerating ground truth relations...";
-  const proto::GroundTruth ground_truth =
-      GenerateGroundTruth(pose_graph, min_covered_distance,
+  proto::GroundTruth ground_truth;
+  if(multiple_trajectories) {
+    ground_truth =
+      GenerateGroundTruthForMultipleTrajectories(pose_graph, min_covered_distance,
+                          outlier_threshold_meters, outlier_threshold_radians, output_filename);
+  } else {
+    ground_truth = GenerateGroundTruth(pose_graph, min_covered_distance,
                           outlier_threshold_meters, outlier_threshold_radians);
+  }
+  const std::string& output_filename_ext = output_filename + "_relations.pbstream";
   LOG(INFO) << "Writing " << ground_truth.relation_size() << " relations to '"
-            << output_filename << "'.";
+            << output_filename_ext << "'.";
   {
-    std::ofstream output_stream(output_filename,
+    
+    std::ofstream output_stream(output_filename_ext,
                                 std::ios_base::out | std::ios_base::binary);
     CHECK(ground_truth.SerializeToOstream(&output_stream))
         << "Could not serialize ground truth data.";
@@ -98,5 +108,5 @@ int main(int argc, char** argv) {
   ::cartographer::ground_truth::Run(
       FLAGS_pose_graph_filename, FLAGS_output_filename,
       FLAGS_min_covered_distance, FLAGS_outlier_threshold_meters,
-      FLAGS_outlier_threshold_radians);
+      FLAGS_outlier_threshold_radians, FLAGS_multiple_trajectories);
 }

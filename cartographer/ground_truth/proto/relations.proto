@@ -26,6 +26,7 @@ message Relation {
   // to 'timestamp1'.
   transform.proto.Rigid3d expected = 3;
   double covered_distance = 4;
+  int32 trajectory_id = 5;
 }
 
 message GroundTruth {
